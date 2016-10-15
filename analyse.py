@@ -16,6 +16,7 @@ import tweepy
 import textblob
 import codecs
 import csv
+import re
 
 #
 # Configure 
@@ -58,11 +59,24 @@ oauth_handler.set_access_token(access_token, access_token_secret)
 twitter = tweepy.API(oauth_handler)
 
 # pull tweets containing search term
-tweets = twitter.search(q = args.query, count = args.limit)
+tweets = twitter.search(q = args.query, count = args.limit, lang = "en")
 
 
 #
 # Analyse tweets
+
+def preprocess(tweet):
+    text = tweet.lower()
+    # URLs
+    text = re.sub("((www\.[^\s]+)|(https?://[^\s]+))", "URL", text)
+    # @user mentions
+    text = re.sub("@[^\s]+","AT_USER", text)
+    # whitespaces
+    text = re.sub("[\s]+", " ", text)
+    # hashtags
+    text = re.sub("#([^\s]+)", "\1", text)
+    return text.strip()
+
 
 try:
     with open(args.outfile, "wb") as outfile:
@@ -70,7 +84,7 @@ try:
         writer = csv.DictWriter(outfile, fieldnames = fieldnames, quoting = csv.QUOTE_ALL)
         writer.writeheader()
         for tweet in tweets:
-            analysis = textblob.TextBlob(tweet.text)
+            analysis = textblob.TextBlob(preprocess(tweet.text))
             row = {}
             row[u"name"] = unicode(tweet.user.name).encode("utf8")
             row[u"screen_name"] = unicode(tweet.user.screen_name).encode("utf8")
